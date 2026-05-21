@@ -343,6 +343,24 @@ export default {
                 case 'mm_fee_payer_select':
                   await handleFeePayerSelect(interaction);
                   return;
+                default:
+                  throw createError(
+                    `Unknown MM select menu: ${interaction.customId}`,
+                    ErrorTypes.CONFIGURATION,
+                    'This select menu is not available.',
+                    withTraceContext({ customId: interaction.customId }, interactionTraceContext)
+                  );
+              }
+            } catch (error) {
+              await handleInteractionError(interaction, error, withTraceContext({
+                type: 'select_menu',
+                customId: interaction.customId,
+                handler: 'mm_humano'
+              }, interactionTraceContext));
+            }
+            return;
+          }
+
           const [customId, ...args] = interaction.customId.split(':');
           const selectMenu = client.selectMenus.get(customId);
 
