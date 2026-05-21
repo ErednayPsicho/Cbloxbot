@@ -111,11 +111,11 @@ const wizardStates = new Map();
 
 // Track channels being claimed to prevent race conditions
 const claimingChannels = new Set();
-const claimTimeout = 3000; // 3 seconds timeout (reduced from 15s)
+const claimTimeout = 6000; // 6 seconds timeout (doubled from 3s)
 
 // Cooldown map to prevent spam
 const userCooldowns = new Map();
-const COOLDOWN_MS = 30000; // 30 seconds cooldown
+const COOLDOWN_MS = 6000; // 30 seconds cooldown
 
 /**
  * Create the payment method selection embed
@@ -1387,7 +1387,7 @@ export async function handleCompleteTicket(interaction) {
     logger.warn('Failed to send MM success log', { error: logError.message });
   }
 
-  await new Promise(resolve => setTimeout(resolve, 3000));
+  await new Promise(resolve => setTimeout(resolve, 6000));
   try {
     const parent = channel.parent;
     const parentChildCount = parent ? parent.children.cache.size : 0;
