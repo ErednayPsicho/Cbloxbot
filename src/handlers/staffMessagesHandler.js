@@ -43,15 +43,15 @@ function generateMessageId() {
  */
 export async function handleStaffMessageStart(interaction) {
   try {
-    await interaction.deferUpdate();
-
-    // Check if user is admin
+    // Check if user is admin BEFORE deferring
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.followUp({
+      return await interaction.reply({
         content: '❌ Apenas administradores podem criar mensagens de staff.',
         ephemeral: true
       });
     }
+
+    await interaction.deferUpdate();
 
     // Show message type selection menu
     await interaction.followUp({
@@ -67,10 +67,14 @@ export async function handleStaffMessageStart(interaction) {
 
   } catch (error) {
     logger.error('[STAFF_HANDLER] Error in handleStaffMessageStart:', error);
-    await interaction.followUp({
-      content: '❌ Erro ao iniciar criação de mensagem.',
-      ephemeral: true
-    }).catch(e => logger.error('Failed to send error message:', e));
+    try {
+      await interaction.reply({
+        content: '❌ Erro ao iniciar criação de mensagem.',
+        ephemeral: true
+      });
+    } catch (e) {
+      logger.error('Failed to send error message:', e);
+    }
   }
 }
 
@@ -79,8 +83,6 @@ export async function handleStaffMessageStart(interaction) {
  */
 export async function handleMessageTypeSelect(interaction) {
   try {
-    await interaction.deferUpdate();
-
     const messageType = interaction.values[0];
     
     // Store the selected type in interaction context
@@ -110,10 +112,14 @@ export async function handleMessageTypeSelect(interaction) {
 
   } catch (error) {
     logger.error('[STAFF_HANDLER] Error in handleMessageTypeSelect:', error);
-    await interaction.followUp({
-      content: '❌ Erro ao selecionar tipo de mensagem.',
-      ephemeral: true
-    }).catch(e => logger.error('Failed to send error message:', e));
+    try {
+      await interaction.reply({
+        content: '❌ Erro ao selecionar tipo de mensagem.',
+        ephemeral: true
+      });
+    } catch (e) {
+      logger.error('Failed to send error message:', e);
+    }
   }
 }
 
@@ -121,7 +127,10 @@ export async function handleMessageTypeSelect(interaction) {
  * Handle modal submission (create message)
  */
 export async function handleStaffMessageModalSubmit(interaction) {
+  let messageData = null;
+  
   try {
+    // Defer the update FIRST before any other response
     await interaction.deferUpdate();
 
     const title = interaction.fields.getTextInputValue('staff_title_input');
@@ -135,7 +144,7 @@ export async function handleStaffMessageModalSubmit(interaction) {
     const messageId = generateMessageId();
 
     // Create the message data
-    const messageData = {
+    messageData = {
       id: messageId,
       type: messageType,
       title: title,
@@ -229,6 +238,7 @@ export async function handleStaffMessageModalSubmit(interaction) {
       interaction.client.staffContext.delete(interaction.user.id);
     }
 
+    // Send success response via followUp
     await interaction.followUp({
       content: `✅ Mensagem de staff **"${title}"** criada com sucesso!`,
       ephemeral: true
@@ -244,10 +254,22 @@ export async function handleStaffMessageModalSubmit(interaction) {
 
   } catch (error) {
     logger.error('[STAFF_HANDLER] Error in handleStaffMessageModalSubmit:', error);
-    await interaction.followUp({
-      content: '❌ Erro ao criar mensagem de staff.',
-      ephemeral: true
-    }).catch(e => logger.error('Failed to send error message:', e));
+    try {
+      // Try to respond with error
+      if (interaction.deferred) {
+        await interaction.followUp({
+          content: '❌ Erro ao criar mensagem de staff.',
+          ephemeral: true
+        });
+      } else {
+        await interaction.reply({
+          content: '❌ Erro ao criar mensagem de staff.',
+          ephemeral: true
+        });
+      }
+    } catch (e) {
+      logger.error('Failed to send error message:', e);
+    }
   }
 }
 
@@ -256,29 +278,27 @@ export async function handleStaffMessageModalSubmit(interaction) {
  */
 export async function handleStaffMessageEdit(interaction, messageId) {
   try {
-    await interaction.deferUpdate();
-
-    // Find the message
+    // Find the message BEFORE showing modal
     const guildMessages = staffMessages.get(interaction.guildId) || [];
     const messageData = guildMessages.find(m => m.id === messageId);
 
     if (!messageData) {
-      return await interaction.followUp({
+      return await interaction.reply({
         content: '❌ Mensagem não encontrada.',
         ephemeral: true
       });
     }
 
-    // Check permission
+    // Check permission BEFORE showing modal
     if (messageData.authorId !== interaction.user.id && 
         !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return await interaction.followUp({
+      return await interaction.reply({
         content: '❌ Apenas o criador ou administradores podem editar esta mensagem.',
         ephemeral: true
       });
     }
 
-    // Show edit modal
+    // Show edit modal (don't defer, just show modal directly)
     const modal = new ModalBuilder()
       .setCustomId(`staff_edit_modal_${messageId}`)
       .setTitle('Editar Mensagem de Staff')
@@ -307,10 +327,21 @@ export async function handleStaffMessageEdit(interaction, messageId) {
 
   } catch (error) {
     logger.error('[STAFF_HANDLER] Error in handleStaffMessageEdit:', error);
-    await interaction.followUp({
-      content: '❌ Erro ao editar mensagem.',
-      ephemeral: true
-    }).catch(e => logger.error('Failed to send error message:', e));
+    try {
+      if (interaction.deferred) {
+        await interaction.followUp({
+          content: '❌ Erro ao editar mensagem.',
+          ephemeral: true
+        });
+      } else {
+        await interaction.reply({
+          content: '❌ Erro ao editar mensagem.',
+          ephemeral: true
+        });
+      }
+    } catch (e) {
+      logger.error('Failed to send error message:', e);
+    }
   }
 }
 
@@ -427,10 +458,21 @@ export async function handleStaffMessageEditModalSubmit(interaction, messageId) 
 
   } catch (error) {
     logger.error('[STAFF_HANDLER] Error in handleStaffMessageEditModalSubmit:', error);
-    await interaction.followUp({
-      content: '❌ Erro ao atualizar mensagem.',
-      ephemeral: true
-    }).catch(e => logger.error('Failed to send error message:', e));
+    try {
+      if (interaction.deferred) {
+        await interaction.followUp({
+          content: '❌ Erro ao atualizar mensagem.',
+          ephemeral: true
+        });
+      } else {
+        await interaction.reply({
+          content: '❌ Erro ao atualizar mensagem.',
+          ephemeral: true
+        });
+      }
+    } catch (e) {
+      logger.error('Failed to send error message:', e);
+    }
   }
 }
 
@@ -562,10 +604,21 @@ export async function handleStaffMessageView(interaction, messageId) {
 
   } catch (error) {
     logger.error('[STAFF_HANDLER] Error in handleStaffMessageView:', error);
-    await interaction.followUp({
-      content: '❌ Erro ao exibir detalhes da mensagem.',
-      ephemeral: true
-    }).catch(e => logger.error('Failed to send error message:', e));
+    try {
+      if (interaction.deferred) {
+        await interaction.followUp({
+          content: '❌ Erro ao exibir detalhes da mensagem.',
+          ephemeral: true
+        });
+      } else {
+        await interaction.reply({
+          content: '❌ Erro ao exibir detalhes da mensagem.',
+          ephemeral: true
+        });
+      }
+    } catch (e) {
+      logger.error('Failed to send error message:', e);
+    }
   }
 }
 
