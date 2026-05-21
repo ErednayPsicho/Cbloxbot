@@ -1,310 +1,185 @@
 /**
- * /setup-staff Command
+ * /setup-staff Command - Staff Message Creator
  * 
- * Creates a customizable message panel for staff communications in the server.
- * Allows administrators to set up beautiful, formatted messages similar to 
- * the middleman and support ticket systems.
+ * Creates beautiful, professional staff messages directly in a channel.
+ * No buttons, no metadata, no ephemeral visibility — just clean embeds.
+ * 
+ * Usage:
+ *   /setup-staff canal:<#channel> titulo:<title> descricao:<description> [tipo:<type>] [cor:<hex>] [rodape:<footer>]
+ * 
  * Restricted to Administrators only.
  */
 
 import { 
   SlashCommandBuilder, 
   PermissionFlagsBits, 
-  EmbedBuilder, 
-  ButtonBuilder, 
-  ButtonStyle, 
-  ActionRowBuilder,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  StringSelectMenuBuilder,
-  SelectMenuOptionBuilder
+  EmbedBuilder,
+  ChannelType
 } from 'discord.js';
-import versionConfig from '../config/version.js';
 import { logger } from '../utils/logger.js';
 import { InteractionHelper } from '../utils/interactionHelper.js';
 
-// Custom IDs for the setup staff messages
-export const STAFF_SETUP_IDS = {
-  START_BUTTON: 'staff_start_setup',
-  MENU_SELECT: 'staff_message_type_select',
-  CREATE_MESSAGE_BUTTON: 'staff_create_message',
-  EDIT_MESSAGE_BUTTON: 'staff_edit_message',
-  DELETE_MESSAGE_BUTTON: 'staff_delete_message',
-  COLOR_MODAL: 'staff_color_modal',
-  TITLE_MODAL: 'staff_title_modal',
-  DESCRIPTION_MODAL: 'staff_description_modal'
+// Color presets by message type
+const MESSAGE_TYPE_COLORS = {
+  aviso: 0xF39C12,          // Yellow
+  reuniao: 0x3498DB,        // Blue
+  relatorio: 0x2ECC71,      // Green
+  alerta: 0xE74C3C,         // Red
+  anuncio: 0x9B59B6,        // Purple
+  configuracao: 0x1a1a2e,   // Dark Blue
+  boas_vindas: 0xFFD700,    // Gold
+  regras: 0x8B0000          // Dark Red
 };
 
-// Default theme for staff messages
-const STAFF_THEME = {
-  primary: 0xE8511A,      // Orange
-  success: 0x2ECC71,      // Green
-  warning: 0xF39C12,      // Yellow
-  error: 0xE74C3C,        // Red
-  info: 0x3498DB,         // Blue
-  footerText: 'HowlBot Staff Messages | Sistema de Mensagens da Staff'
+const MESSAGE_TYPE_EMOJIS = {
+  aviso: '📋',
+  reuniao: '👥',
+  relatorio: '📊',
+  alerta: '⚠️',
+  anuncio: '✨',
+  configuracao: '🔧',
+  boas_vindas: '👋',
+  regras: '📋'
 };
-
-/**
- * Create the setup message embed
- */
-function createSetupEmbed() {
-  return new EmbedBuilder()
-    .setColor(STAFF_THEME.primary)
-    .setTitle('📢 Painel de Mensagens da Staff')
-    .setThumbnail('https://images-ext-1.discordapp.net/external/8h1dXavug_ACztUMxYRo-aZMCdIL6o1GkUcN-S9ybWA/https/media.tenor.com/IpTNBgceTUAAAAPo/howl.mp4')
-    .setDescription(
-      '> Gerencie mensagens customizadas para comunicações internas da staff. ' +
-      '> Similar ao sistema de intermediação e suporte, mas dedicado à equipe.'
-    )
-    .addFields(
-      {
-        name: '💡 FUNCIONALIDADES',
-        value: '✅ Criar mensagens customizadas com cores e titles próprios\n' +
-               '✅ Tabelas formatadas estilo HTML com dados da staff\n' +
-               '✅ Sistema similar ao Middleman e Suporte\n' +
-               '✅ Gerenciar múltiplas mensagens no mesmo painel\n\n',
-        inline: false
-      },
-      {
-        name: '🎨 TIPOS DE MENSAGENS',
-        value: '📋 **Avisos** - Comunicados importantes\n' +
-               '👥 **Reuniões** - Agendamento de reuniões\n' +
-               '📊 **Relatórios** - Relatórios e estatísticas\n' +
-               '⚠️ **Alertas** - Avisos críticos\n' +
-               '✨ **Anúncios** - Anúncios gerais\n\n',
-        inline: false
-      },
-      {
-        name: '🔧 COMO USAR',
-        value: '1. Clique em "Criar Mensagem de Staff"\n' +
-               '2. Escolha o tipo de mensagem\n' +
-               '3. Customize cores, título e descrição\n' +
-               '4. A mensagem será criada no painel\n' +
-               '5. Edite ou delete conforme necessário\n\n',
-        inline: false
-      },
-      {
-        name: '📋 REGRAS',
-        value: '🔒 Apenas administradores podem criar mensagens\n' +
-               '📝 Use descrições claras e objetivas\n' +
-               '⏳ Mensagens são permanentes até serem deletadas\n' +
-               '🎨 Escolha cores que combinem com o tema do servidor\n\n',
-        inline: false
-      }
-    )
-    .setFooter({ text: STAFF_THEME.footerText })
-    .setTimestamp();
-}
-
-/**
- * Create the main action button
- */
-function createStartButton() {
-  return new ActionRowBuilder()
-    .addComponents(
-      new ButtonBuilder()
-        .setCustomId(STAFF_SETUP_IDS.START_BUTTON)
-        .setLabel('📢 Criar Mensagem de Staff')
-        .setStyle(ButtonStyle.Primary)
-        .setEmoji('📝')
-    );
-}
-
-/**
- * Create message type selection menu
- */
-function createMessageTypeMenu() {
-  return new ActionRowBuilder()
-    .addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId(STAFF_SETUP_IDS.MENU_SELECT)
-        .setPlaceholder('Selecione o tipo de mensagem...')
-        .addOptions([
-          new SelectMenuOptionBuilder()
-            .setLabel('📋 Avisos')
-            .setDescription('Comunicados importantes para a staff')
-            .setValue('aviso')
-            .setEmoji('📋'),
-          new SelectMenuOptionBuilder()
-            .setLabel('👥 Reuniões')
-            .setDescription('Agendamento e informações de reuniões')
-            .setValue('reuniao')
-            .setEmoji('👥'),
-          new SelectMenuOptionBuilder()
-            .setLabel('📊 Relatórios')
-            .setDescription('Compartilhar relatórios e estatísticas')
-            .setValue('relatorio')
-            .setEmoji('📊'),
-          new SelectMenuOptionBuilder()
-            .setLabel('⚠️ Alertas')
-            .setDescription('Avisos críticos e urgentes')
-            .setValue('alerta')
-            .setEmoji('⚠️'),
-          new SelectMenuOptionBuilder()
-            .setLabel('✨ Anúncios')
-            .setDescription('Anúncios gerais da staff')
-            .setValue('anuncio')
-            .setEmoji('✨'),
-          new SelectMenuOptionBuilder()
-            .setLabel('🔧 Configurações')
-            .setDescription('Mensagens de configuração do servidor')
-            .setValue('configuracao')
-            .setEmoji('🔧')
-        ])
-    );
-}
-
-/**
- * Create the customization modal for title
- */
-function createTitleModal() {
-  return new ModalBuilder()
-    .setCustomId(STAFF_SETUP_IDS.TITLE_MODAL)
-    .setTitle('Definir Título da Mensagem')
-    .addComponents(
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('staff_title_input')
-          .setLabel('Título')
-          .setPlaceholder('Digite o título da mensagem...')
-          .setStyle(TextInputStyle.Short)
-          .setMaxLength(100)
-          .setRequired(true)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('staff_description_input')
-          .setLabel('Descrição/Conteúdo')
-          .setPlaceholder('Digite a descrição ou conteúdo da mensagem...')
-          .setStyle(TextInputStyle.Paragraph)
-          .setMaxLength(1024)
-          .setRequired(true)
-      )
-    );
-}
-
-/**
- * Create a formatted staff message embed
- */
-function createStaffMessageEmbed(title, description, type, color = STAFF_THEME.primary) {
-  const typeEmojis = {
-    aviso: '📋',
-    reuniao: '👥',
-    relatorio: '📊',
-    alerta: '⚠️',
-    anuncio: '✨',
-    configuracao: '🔧'
-  };
-
-  return new EmbedBuilder()
-    .setColor(color)
-    .setTitle(`${typeEmojis[type] || '📢'} ${title}`)
-    .setDescription(description)
-    .setFooter({ text: STAFF_THEME.footerText })
-    .setTimestamp();
-}
-
-/**
- * Create action buttons for message management
- */
-function createMessageActionButtons() {
-  return new ActionRowBuilder()
-    .addComponents(
-      new ButtonBuilder()
-        .setCustomId(STAFF_SETUP_IDS.EDIT_MESSAGE_BUTTON)
-        .setLabel('Editar')
-        .setStyle(ButtonStyle.Primary)
-        .setEmoji('✏️'),
-      new ButtonBuilder()
-        .setCustomId(STAFF_SETUP_IDS.DELETE_MESSAGE_BUTTON)
-        .setLabel('Deletar')
-        .setStyle(ButtonStyle.Danger)
-        .setEmoji('🗑️')
-    );
-}
-
-/**
- * Create a formatted table-style message
- */
-function createStaffMessageTable(data) {
-  let table = '```\n';
-  table += '┌────────────────────────────────────────┐\n';
-  table += '│         MENSAGEM DA STAFF              │\n';
-  table += '├────────────────────────────────────────┤\n';
-  table += `│ Tipo: ${data.type.padEnd(31)}│\n`;
-  table += `│ Criada: ${new Date().toLocaleDateString('pt-BR').padEnd(27)}│\n`;
-  table += '├────────────────────────────────────────┤\n';
-  table += `│ ${data.title.substring(0, 36).padEnd(36)}│\n`;
-  table += '│                                        │\n';
-  table += `│ ${data.description.substring(0, 36).padEnd(36)}│\n`;
-  table += '└────────────────────────────────────────┘\n';
-  table += '```';
-  return table;
-}
 
 export default {
   data: new SlashCommandBuilder()
     .setName('setup-staff')
-    .setDescription('📢 Configurar painel de mensagens da staff (Apenas Administradores)')
+    .setDescription('Enviar uma mensagem de staff personalizada em um canal')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .setDMPermission(false),
+    .setDMPermission(false)
+    .addChannelOption(option =>
+      option
+        .setName('canal')
+        .setDescription('Canal onde a mensagem será enviada')
+        .setRequired(true)
+        .addChannelTypes(ChannelType.GuildText)
+    )
+    .addStringOption(option =>
+      option
+        .setName('titulo')
+        .setDescription('Título da mensagem (ex: "REGRAS GERAIS")')
+        .setRequired(true)
+        .setMaxLength(100)
+    )
+    .addStringOption(option =>
+      option
+        .setName('descricao')
+        .setDescription('Conteúdo/descrição da mensagem')
+        .setRequired(true)
+        .setMaxLength(2048)
+    )
+    .addStringOption(option =>
+      option
+        .setName('tipo')
+        .setDescription('Tipo de mensagem (determina cor e emoji)')
+        .setRequired(false)
+        .addChoices(
+          { name: '📋 Avisos', value: 'aviso' },
+          { name: '👥 Reuniões', value: 'reuniao' },
+          { name: '📊 Relatórios', value: 'relatorio' },
+          { name: '⚠️ Alertas', value: 'alerta' },
+          { name: '✨ Anúncios', value: 'anuncio' },
+          { name: '🔧 Configurações', value: 'configuracao' },
+          { name: '👋 Boas-vindas', value: 'boas_vindas' },
+          { name: '📋 Regras', value: 'regras' }
+        )
+    )
+    .addStringOption(option =>
+      option
+        .setName('cor')
+        .setDescription('Cor do embed em HEX (ex: FF6347 para vermelho)')
+        .setRequired(false)
+        .setMaxLength(6)
+    )
+    .addStringOption(option =>
+      option
+        .setName('rodape')
+        .setDescription('Texto do rodapé (ex: "Staff • Meu Servidor")')
+        .setRequired(false)
+        .setMaxLength(100)
+    ),
 
   /**
    * Execute the /setup-staff command
    */
   async execute(interaction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
       // Only administrators can use this command
       if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return interaction.editReply({
+        return await InteractionHelper.safeEditReply(interaction, {
           content: '❌ Apenas administradores podem usar este comando.',
-          ephemeral: true
         });
       }
 
-      // Send the setup message
-      await interaction.channel.send({
-        embeds: [createSetupEmbed()],
-        components: [createStartButton()]
+      // Get parameters
+      const targetChannel = interaction.options.getChannel('canal');
+      const titulo = interaction.options.getString('titulo');
+      const descricao = interaction.options.getString('descricao');
+      const tipo = interaction.options.getString('tipo') || 'anuncio';
+      const corHex = interaction.options.getString('cor');
+      const rodape = interaction.options.getString('rodape') || `Staff • ${interaction.guild.name}`;
+
+      // Verify bot can send messages in target channel
+      if (!targetChannel.permissionsFor(interaction.client.user).has('SendMessages')) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: '❌ Não tenho permissão para enviar mensagens neste canal.'
+        });
+      }
+
+      // Determine color
+      let cor = MESSAGE_TYPE_COLORS[tipo] || MESSAGE_TYPE_COLORS.anuncio;
+      if (corHex) {
+        try {
+          cor = parseInt(corHex, 16);
+        } catch (e) {
+          logger.warn('Invalid hex color provided:', corHex);
+          // Use default color if parsing fails
+        }
+      }
+
+      // Get emoji based on type
+      const emoji = MESSAGE_TYPE_EMOJIS[tipo] || '📢';
+
+      // Create the professional staff message embed
+      const staffEmbed = new EmbedBuilder()
+        .setColor(cor)
+        .setTitle(`${emoji} — ${titulo.toUpperCase()}`)
+        .setDescription(descricao)
+        .setFooter({ text: rodape })
+        .setTimestamp();
+
+      // Send the message to the target channel
+      const sentMessage = await targetChannel.send({
+        embeds: [staffEmbed]
       });
 
-      await interaction.editReply({
-        content: '✅ Painel de mensagens da staff criado com sucesso neste canal!'
+      // Reply to the command with a simple ephemeral confirmation
+      await InteractionHelper.safeEditReply(interaction, {
+        content: `✅ Mensagem de staff enviada com sucesso em ${targetChannel}!\n**Tipo:** ${tipo} | **Cor:** #${cor.toString(16).toUpperCase().padStart(6, '0')}`
       });
 
-      logger.info(`[STAFF_SETUP] Painel criado`, {
-        channelId: interaction.channelId,
+      logger.info('[STAFF_SETUP] Staff message sent', {
+        userId: interaction.user.id,
         guildId: interaction.guildId,
-        userId: interaction.user.id
+        channelId: targetChannel.id,
+        messageId: sentMessage.id,
+        type: tipo,
+        title: titulo
       });
 
     } catch (error) {
       logger.error('Error in setup-staff command:', error);
       
-      const errorMessage = {
-        content: '❌ Erro ao criar painel de mensagens da staff.',
-        ephemeral: true
-      };
-
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(errorMessage);
-      } else {
-        await interaction.reply(errorMessage);
+      try {
+        await InteractionHelper.safeEditReply(interaction, {
+          content: '❌ Erro ao enviar mensagem de staff. Verifique as permissões e tente novamente.'
+        });
+      } catch (e) {
+        logger.error('Failed to send error response:', e);
       }
     }
   }
-};
-
-// Export handler functions for button/modal interactions
-export {
-  createMessageTypeMenu,
-  createTitleModal,
-  createStaffMessageEmbed,
-  createMessageActionButtons,
-  createStaffMessageTable,
-  STAFF_THEME
 };

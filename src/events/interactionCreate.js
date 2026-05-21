@@ -24,17 +24,6 @@ import {
   handleCloseMM
 } from '../handlers/mmHumanoHandler.js';
 
-// Staff Messages handlers
-import {
-  handleStaffMessageStart,
-  handleMessageTypeSelect,
-  handleStaffMessageModalSubmit,
-  handleStaffMessageEdit,
-  handleStaffMessageEditModalSubmit,
-  handleStaffMessageDelete,
-  handleStaffMessageView
-} from '../handlers/staffMessagesHandler.js';
-
 function withTraceContext(context = {}, traceContext = {}) {
   return {
     traceId: traceContext.traceId,
@@ -248,34 +237,6 @@ export default {
             }
           }
         } else if (interaction.isButton()) {
-          // Check for STAFF MESSAGES buttons
-          if (interaction.customId.startsWith('staff_')) {
-            try {
-              const customId = interaction.customId;
-              
-              if (customId === 'staff_start_setup') {
-                await handleStaffMessageStart(interaction);
-              } else if (customId.startsWith('staff_edit_')) {
-                const messageId = customId.replace('staff_edit_', '');
-                await handleStaffMessageEdit(interaction, messageId);
-              } else if (customId.startsWith('staff_delete_')) {
-                const messageId = customId.replace('staff_delete_', '');
-                await handleStaffMessageDelete(interaction, messageId);
-              } else if (customId.startsWith('staff_view_')) {
-                const messageId = customId.replace('staff_view_', '');
-                await handleStaffMessageView(interaction, messageId);
-              }
-              return;
-            } catch (error) {
-              await handleInteractionError(interaction, error, withTraceContext({
-                type: 'button',
-                customId: interaction.customId,
-                handler: 'staff_messages'
-              }, interactionTraceContext));
-            }
-            return;
-          }
-
           // Check for NEW MM buttons (database-free system)
           if (interaction.customId.startsWith('mm_')) {
             try {
@@ -366,23 +327,6 @@ export default {
             }, interactionTraceContext));
           }
         } else if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) {
-          // STAFF MESSAGES select menus
-          if (interaction.customId.startsWith('staff_')) {
-            try {
-              if (interaction.customId === 'staff_message_type_select') {
-                await handleMessageTypeSelect(interaction);
-              }
-              return;
-            } catch (error) {
-              await handleInteractionError(interaction, error, withTraceContext({
-                type: 'select_menu',
-                customId: interaction.customId,
-                handler: 'staff_messages'
-              }, interactionTraceContext));
-            }
-            return;
-          }
-
           // NEW MM System select menus (database-free)
           if (interaction.customId.startsWith('mm_')) {
             try {
@@ -445,26 +389,6 @@ export default {
             }, interactionTraceContext));
           }
         } else if (interaction.isModalSubmit()) {
-          // STAFF MESSAGES modals
-          if (interaction.customId.startsWith('staff_')) {
-            try {
-              if (interaction.customId === 'staff_title_modal') {
-                await handleStaffMessageModalSubmit(interaction);
-              } else if (interaction.customId.startsWith('staff_edit_modal_')) {
-                const messageId = interaction.customId.replace('staff_edit_modal_', '');
-                await handleStaffMessageEditModalSubmit(interaction, messageId);
-              }
-              return;
-            } catch (error) {
-              await handleInteractionError(interaction, error, withTraceContext({
-                type: 'modal',
-                customId: interaction.customId,
-                handler: 'staff_messages'
-              }, interactionTraceContext));
-            }
-            return;
-          }
-
           if (interaction.customId === 'mm_amount_modal') {
             try {
               await handleAmountModalSubmit(interaction);
