@@ -613,7 +613,7 @@ export async function handlePaymentSelect(interaction) {
   const state = wizardStates.get(userId);
   
   if (!state) {
-    return interaction.followUp({
+    return interaction.reply({
       content: '❌ Sessão expirada. Por favor, inicie novamente.',
       ephemeral: true
     });
@@ -637,7 +637,7 @@ export async function handleRoleSelect(interaction) {
   const state = wizardStates.get(userId);
   
   if (!state) {
-    return interaction.followUp({
+    return interaction.reply({
       content: '❌ Sessão expirada. Por favor, inicie novamente.',
       ephemeral: true
     });
@@ -701,7 +701,7 @@ export async function handleCounterpartySelect(interaction) {
   const state = wizardStates.get(userId);
   
   if (!state) {
-    return interaction.followUp({
+    return interaction.reply({
       content: '❌ Sessão expirada. Por favor, inicie novamente.',
       ephemeral: true
     });

@@ -1,8 +1,3 @@
-
-
-
-
-
 import { Events, EmbedBuilder, AttachmentBuilder } from 'discord.js';
 import QRCode from 'qrcode';
 import pixKeys from '../../pixKeys.js';
@@ -17,12 +12,13 @@ const MESSAGE_XP_RATE_LIMIT_WINDOW_MS = 10000;
 export default {
   name: Events.MessageCreate,
   async execute(message, client) {
-    try {
-      
-      if (message.author.bot || !message.guild) return;
+    // Ignorar bots e mensagens fora de servidores
+    if (message.author.bot || !message.guild) return;
 
-      await handleLeveling(message, client);
-      await handlePixAutomatic(message, client);
+    try {
+      // Executar handlers de forma independente e segura
+      await handleLeveling(message, client).catch(err => logger.error('Erro no Leveling:', err));
+      await handlePixAutomatic(message, client).catch(err => logger.error('Erro no Pix Automático:', err));
     } catch (error) {
       logger.error('Error in messageCreate event:', error);
     }
@@ -119,20 +115,24 @@ async function handleLeveling(message, client) {
 
 async function handlePixAutomatic(message, client) {
   try {
-    const ticketCategoryId = '1505618166922084575';
-    const middlemanRoleId = '1505618270492033094';
-    const logChannelId = '1506667572383453374';
+    // Configurações isoladas
+    const TICKET_CATEGORY_ID = '1505618166922084575';
+    const MIDDLEMAN_ROLE_ID = '1505618270492033094';
+    const LOG_CHANNEL_ID = '1506667572383453374';
 
-    const parentId = message.channel.parentId;
-    if (parentId !== ticketCategoryId) return;
+    // 1. Verificar se está na categoria de tickets correta
+    if (message.channel.parentId !== TICKET_CATEGORY_ID) return;
 
-    const member = await message.guild.members.fetch(message.author.id).catch(() => null);
-    if (!member || !member.roles.cache.has(middlemanRoleId)) return;
+    // 2. Verificar se o autor é um Middleman
+    const member = message.member || await message.guild.members.fetch(message.author.id).catch(() => null);
+    if (!member || !member.roles.cache.has(MIDDLEMAN_ROLE_ID)) return;
 
-    const existingBotPixEmbed = await message.channel.messages.fetch({ limit: 50 })
-      .then(messages => messages.some(msg => msg.author.id === client.user.id && msg.embeds.some(embed => embed.title === '💰 Pagamento via Pix')))
-      .catch(() => false);
-    if (existingBotPixEmbed) return;
+    // 3. Evitar duplicatas (verificar se o bot já enviou o Pix nas últimas 20 mensagens)
+    const recentMessages = await message.channel.messages.fetch({ limit: 20 }).catch(() => null);
+    if (!recentMessages) return;
+
+    const alreadySent = recentMessages.some(msg => msg.author.id === client.user.id && msg.embeds.some(embed => embed.title === '💰 Pagamento via Pix'));
+    if (alreadySent) return;
 
     const chave = pixKeys[message.author.id];
     if (!chave) {
@@ -159,7 +159,7 @@ async function handlePixAutomatic(message, client) {
 
     await message.channel.send({ embeds: [embed], files: [attachment] });
 
-    const canalLogs = client.channels.cache.get(logChannelId);
+    const canalLogs = client.channels.cache.get(LOG_CHANNEL_ID) || await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
     if (canalLogs) {
       const embedLog = new EmbedBuilder()
         .setColor(0x0099ff)
@@ -173,8 +173,7 @@ async function handlePixAutomatic(message, client) {
       await canalLogs.send({ embeds: [embedLog] });
     }
   } catch (error) {
-    logger.error('Error handling Pix automatic message for ticket:', error);
+    // Silenciar erros internos para não quebrar o fluxo de mensagens
+    logger.error('Erro silencioso no handlePixAutomatic:', error);
   }
 }
-
-
