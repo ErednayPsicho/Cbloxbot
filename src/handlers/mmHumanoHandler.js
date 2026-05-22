@@ -946,42 +946,6 @@ async function createTicketChannel(interaction, state) {
         'Aguarde um middleman assumir a intermediação.'
     });
 
-    await channel.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(THEME.accent)
-          .setTitle('ℹ️ INFORMAÇÕES IMPORTANTES')
-          .addFields(
-            {
-              name: '🚫 Nunca compartilhe dados pessoais',
-              value: 'Mantenha suas informações privadas protegidas',
-              inline: false
-            },
-            {
-              name: '⏳ Aguarde um middleman assumir',
-              value: 'Um suporte irá garantir a segurança da transação',
-              inline: false
-            },
-            {
-              name: '📋 Siga as instruções do middleman',
-              value: 'Respeite todas as orientações fornecidas',
-              inline: false
-            },
-            {
-              name: '🔒 Somente middleman pode fechar',
-              value: 'A troca só pode ser encerrada pela equipe',
-              inline: false
-            },
-            {
-              name: '✅ Lembre-se de comunicar ao MM quando o item for entregue',
-              value: 'Informe ao middleman assim que o item estiver pronto para entrega',
-              inline: false
-            }
-          )
-          .setFooter({ text: THEME.footerText })
-      ]
-    });
-
     const supportRole = interaction.guild.roles.cache.find(r => r.name.toLowerCase() === 'suporte');
     if (supportRole) {
       await channel.send({
