@@ -22,8 +22,11 @@ import {
   TextInputBuilder,
   TextInputStyle,
   PermissionFlagsBits,
-  ChannelType
+  ChannelType,
+  AttachmentBuilder
 } from 'discord.js';
+import QRCode from 'qrcode';
+import pixKeys from '../../pixKeys.js';
 import mmConfig from '../config/mmConfig.js';
 import versionConfig from '../config/version.js';
 import { logger } from '../utils/logger.js';
@@ -1290,6 +1293,49 @@ export async function handleClaimMM(interaction) {
       content: '✅ O Middleman **' + interaction.user.username + '** assumiu a intermediação.\n' +
                'Agora siga as instruções do middleman para concluir a trade.'
     });
+
+    // --- NOVO SISTEMA DE PIX AUTOMÁTICO ---
+    try {
+      const LOG_CHANNEL_ID = '1506667572383453374';
+      const chave = pixKeys[interaction.user.id];
+
+      if (chave) {
+        const qrBuffer = await QRCode.toBuffer(chave, { width: 300 });
+        const attachment = new AttachmentBuilder(qrBuffer, { name: 'qrcode.png' });
+
+        const embedPix = new EmbedBuilder()
+          .setColor(0x00b300)
+          .setTitle('💰 Pagamento via Pix')
+          .setDescription(
+            `O Middleman **${interaction.member.displayName}** assumiu este ticket.\n\n` +
+            `Utilize os dados abaixo para realizar o pagamento:\n\n` +
+            `**🔑 Chave Pix:**\n\n` +
+            `\`\`\`${chave}\`\`\`\n\n` +
+            `📷 **QR Code abaixo — escaneie para pagar:**`
+          )
+          .setImage('attachment://qrcode.png')
+          .setFooter({ text: 'Após realizar o pagamento, aguarde a confirmação do MM.' });
+
+        await channel.send({ embeds: [embedPix], files: [attachment] });
+
+        // Enviar log no canal específico
+        const canalLogs = interaction.client.channels.cache.get(LOG_CHANNEL_ID) || await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+        if (canalLogs) {
+          const embedLog = new EmbedBuilder()
+            .setColor(0x0099ff)
+            .setTitle('📋 MM assumiu ticket (Pix enviado)')
+            .addFields(
+              { name: 'MM', value: `<@${interaction.user.id}>`, inline: true },
+              { name: 'Canal', value: `<#${channel.id}>`, inline: true },
+              { name: 'Chave Pix', value: `\`${chave}\``, inline: false }
+            )
+            .setTimestamp();
+          await canalLogs.send({ embeds: [embedLog] });
+        }
+      }
+    } catch (error) {
+      logger.error('Erro no Pix automático (no claim):', error);
+    }
 
     await interaction.followUp({
       content: '✅ Intermediação assumida com sucesso!\n\n' +
