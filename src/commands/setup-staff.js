@@ -42,23 +42,6 @@ const MESSAGE_TYPE_EMOJIS = {
   regras: '📋'
 };
 
-/**
- * Apply custom /setup-staff formatting rules.
- * - ****text****   => bold underline
- * - *****text***** => bold italic underline
- * - //             => one blank line
- * - ///            => two blank lines
- */
-function applyStaffMarkup(text) {
-  if (!text) return text;
-
-  return text
-    .replace(/\/\/{3}/g, '\n\n\n')
-    .replace(/\/\/{2}/g, '\n\n')
-    .replace(/\*{5}([\s\S]+?)\*{5}/g, '__***$1***__')
-    .replace(/\*{4}([\s\S]+?)\*{4}/g, '**__$1__**');
-}
-
 export default {
   data: new SlashCommandBuilder()
     .setName('setup-staff')
@@ -84,7 +67,7 @@ export default {
         .setName('descricao')
         .setDescription('Conteúdo/descrição da mensagem')
         .setRequired(true)
-        .setMaxLength(2048)
+        .setMaxLength(4000)
     )
     .addStringOption(option =>
       option
@@ -133,11 +116,12 @@ export default {
 
       // Get parameters
       const targetChannel = interaction.options.getChannel('canal');
-      const titulo = applyStaffMarkup(interaction.options.getString('titulo'));
-      const descricao = applyStaffMarkup(interaction.options.getString('descricao'));
+      const titulo = interaction.options.getString('titulo');
+      const descricao = interaction.options.getString('descricao').replace(/\\n/g, '\n');
       const tipo = interaction.options.getString('tipo') || 'anuncio';
       const corHex = interaction.options.getString('cor');
-      const rodape = applyStaffMarkup(interaction.options.getString('rodape') || `Staff • ${interaction.guild.name}`);
+      const rodape = interaction.options.getString('rodape') || `Staff • ${interaction.guild.name}`;
+      const renderedDescription = `## ${titulo}\n\n${descricao}`;
 
       // Verify bot can send messages in target channel
       if (!targetChannel.permissionsFor(interaction.client.user).has('SendMessages')) {
@@ -157,14 +141,10 @@ export default {
         }
       }
 
-      // Get emoji based on type
-      const emoji = MESSAGE_TYPE_EMOJIS[tipo] || '📢';
-
       // Create the professional staff message embed
       const staffEmbed = new EmbedBuilder()
         .setColor(cor)
-        .setTitle(`${emoji} — ${titulo.toUpperCase()}`)
-        .setDescription(descricao)
+        .setDescription(renderedDescription)
         .setFooter({ text: rodape })
         .setTimestamp();
 
