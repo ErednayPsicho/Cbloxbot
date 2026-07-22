@@ -5,7 +5,7 @@
  * em intermediações, garantindo consistência e facilidade de manutenção.
  * 
  * REGRAS DE NEGÓCIO:
- * 1. Administradores (Founder, Mod, Dev, Suporte, Middleman) PODEM abrir MM, mas NÃO PODEM ser chamados
+ * 1. Administradores (Founder, Mod, Dev, Suporte, Middleman) PODEM abrir MM e também podem ser chamados
  * 2. Bots específicos NÃO PODEM participar de MM (nem chamar nem ser chamados)
  * 3. Membros comuns (Membro, Booster) PODEM participar de MM (chamar e ser chamados)
  * 4. Apenas usuários humanos com roles permitidas podem iniciar MM
@@ -19,7 +19,7 @@ import { logger } from '../utils/logger.js';
 
 /**
  * IDs dos cargos de administração
- * Estes cargos PODEM abrir MM, mas NÃO PODEM ser chamados como contraparte
+ * Estes cargos PODEM abrir MM e também podem ser chamados como contraparte
  */
 export const ADMIN_ROLE_IDS = Object.freeze([
   '1505606856742277171', // Founder
@@ -128,9 +128,9 @@ export function canBeCalledToMM(member) {
     return false;
   }
   
-  // Verifica se é administrador (não pode ser chamado)
+  // Administradores também podem ser chamados como contraparte
   if (isAdmin(member)) {
-    return false;
+    return true;
   }
   
   // Verifica se tem cargo permitido para ser chamado
@@ -154,9 +154,9 @@ export function canParticipateInMM(member) {
     return false;
   }
   
-  // Verifica se é administrador (pode participar mas não pode ser chamado)
+  // Verifica se é administrador
   if (isAdmin(member)) {
-    return true; // Admin pode participar
+    return true;
   }
   
   // Verifica se tem cargo permitido
@@ -191,16 +191,8 @@ export function canBeSelectedAsCounterparty(member, initiatorId = null) {
     };
   }
   
-  // Verifica se é administrador
-  if (isAdmin(member)) {
-    return {
-      allowed: false,
-      reason: 'Administradores não podem ser chamados para intermediações.'
-    };
-  }
-  
-  // Verifica se tem cargo permitido
-  if (!isCallableRole(member)) {
+  // Administradores também podem ser chamados como contraparte
+  if (!isCallableRole(member) && !isAdmin(member)) {
     return {
       allowed: false,
       reason: 'Este usuário não tem permissão para participar de intermediações.'
